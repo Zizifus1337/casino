@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>БУРМАЛДА: CLICKER</title>
+<meta name="description" content="Мемный idle-кликер с казино-визуалом. Бурмалда пошла!">
+<meta name="build" content="2026-10-14-a">
+<link rel="stylesheet" href="style.css?v=2026-10-14-a">
+<meta name="theme-color" content="#120a22">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B0%3C/text%3E%3C/svg%3E">
+<script>
+/* Яндекс Игры: SDK подключается сам, только на настоящем хостинге (http/https, не localhost).
+   Открытие index.html с диска (file://) и localhost работают автономно, без SDK и без ошибок в консоли. */
+(function () {
+  var p = location.protocol, h = location.hostname;
+  if ((p === 'http:' || p === 'https:') && h !== 'localhost' && h !== '127.0.0.1') {
+    document.write('<script src="/sdk.js"><\/script>');
+    document.write('<script>window.YaGames||document.write(\'<script src="https://yandex.ru/games/sdk/v2"><\\/script>\')<\/script>');
+  }
+})();
+</script>
+</head>
+<body>
+<noscript><div style="padding:24px;color:#fff;background:#120a22;font:16px sans-serif;text-align:center">Для игры нужен включённый JavaScript.</div></noscript>
+
+<div id="app">
+
+  <!-- ===================== ЭКРАН ЗАГРУЗКИ ===================== -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="loading-logo">БУРМАЛДА</div>
+    <div class="loading-sub">CLICKER</div>
+    <div class="loading-bar-track"><div id="loadingBarFill" class="loading-bar-fill"></div></div>
+    <div class="loading-hint">Слоты грузятся...</div>
+  </div>
+
+  <!-- ===================== ФОН КАЗИНО ===================== -->
+  <div id="casinoBackground" class="casino-background">
+    <div id="bgPlaceholder" class="bg-placeholder">
+      <span class="bg-placeholder-text">ЗАГЛУШКА ФОНА</span>
+      <span id="bgPlaceholderName" class="bg-placeholder-name">casino_1.png</span>
+    </div>
+    <img id="bgImage" class="bg-image hidden" alt="">
+    <img id="stagePicA" class="bg-stage-pic" alt="">
+    <img id="stagePicB" class="bg-stage-pic" alt="">
+    <div id="stageLayer" class="bg-stage-layer"></div>
+    <div id="stageProps" class="bg-stage-props"></div>
+    <div class="bg-vignette"></div>
+  </div>
+
+  <!-- ===================== ВЕРХНЯЯ ПАНЕЛЬ ===================== -->
+  <header class="topbar">
+    <div class="topbar-row">
+      <div class="stat-pill balance-pill">
+        <span class="stat-icon">💰</span>
+        <div class="stat-text">
+          <span class="stat-label">БАЛАНС</span>
+          <span id="statBalance" class="stat-value">0</span>
+        </div>
+      </div>
+      <div class="stat-pill income-pill">
+        <span class="stat-icon">⚡</span>
+        <div class="stat-text">
+          <span class="stat-label">ДОХОД</span>
+          <span id="statIncome" class="stat-value">+0/сек</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-row">
+      <div class="stat-pill compact">
+        <span class="stat-icon">🔥</span>
+        <div class="stat-text">
+          <span class="stat-label">МНОЖИТЕЛЬ</span>
+          <span id="statMultiplier" class="stat-value">×1</span>
+        </div>
+      </div>
+      <div class="stat-pill compact">
+        <span class="stat-icon">⭐</span>
+        <div class="stat-text">
+          <span class="stat-label">УРОВЕНЬ</span>
+          <span id="statLevel" class="stat-value">1</span>
+        </div>
+      </div>
+      <div class="sound-wrap">
+        <button id="soundToggleBtn" class="icon-btn sound-btn" title="Громкость" aria-haspopup="true" aria-expanded="false">🔊</button>
+        <div id="volumePop" class="volume-pop hidden">
+          <button id="volumeMuteBtn" class="volume-mute" title="Включить / выключить звук">🔊</button>
+          <input id="volumeSlider" class="volume-slider" type="range" min="0" max="100" step="1" value="100" aria-label="Громкость">
+          <span id="volumeValue" class="volume-value">100%</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="xp-bar-wrap">
+    <div class="xp-bar-track">
+      <div id="xpBarFill" class="xp-bar-fill"></div>
+    </div>
+    <span id="xpBarLabel" class="xp-bar-label">Новичок · 0 / 100 XP</span>
+    <div id="xpTip" class="xp-tip" role="tooltip"></div>
+  </div>
+
+  <!-- ===================== ГЛАВНЫЙ ЭКРАН ===================== -->
+  <main id="screen-main" class="screen screen-main active">
+
+    <button id="onboardGoal" class="onboard-goal hidden" type="button"></button>
+
+    <div id="floatingLayer" class="floating-layer"></div>
+
+    <div class="terminal" id="slotMachine">
+      <div class="terminal-bulbs top" id="bulbsTop"></div>
+      <div class="terminal-head"><span class="terminal-title">БУРМАЛДА СЛОТ</span></div>
+      <div class="terminal-lcd" id="terminalLcd"><span id="terminalLcdText" class="lcd-text lcd-idle">ГОТОВ · ЖМИ КРУТИТЬ</span></div>
+      <div class="reels" id="reels">
+        <div class="reel" id="reel1"><div class="reel-strip"></div></div>
+        <div class="reel" id="reel2"><div class="reel-strip"></div></div>
+        <div class="reel" id="reel3"><div class="reel-strip"></div></div>
+        <div class="reels-glass"></div>
+      </div>
+      <div class="terminal-bulbs bottom" id="bulbsBottom"></div>
+    </div>
+
+    <button id="spinButton" class="spin-button">
+      <span class="spin-button-text">КРУТИТЬ</span>
+    </button>
+
+    <button id="adPauseButton" class="ad-pause-button">
+      📺 РЕКЛАМНАЯ ПАУЗА
+      <span class="ad-pause-sub">×2 доход на 60 сек</span>
+    </button>
+
+  </main>
+
+  <!-- ===================== МАГАЗИН ===================== -->
+  <section id="screen-shop" class="screen screen-shop">
+    <h2 class="screen-title">🛒 МАГАЗИН УЛУЧШЕНИЙ</h2>
+    <div id="shopList" class="shop-list"></div>
+  </section>
+
+  <!-- ===================== ИМПЕРИЯ ===================== -->
+  <section id="screen-empire" class="screen screen-empire">
+    <h2 class="screen-title">👑 ИМПЕРИЯ</h2>
+
+    <div class="empire-summary">
+      <div class="empire-summary-row"><span>⚡ Общий доход</span><span id="empireIncomeLabel">+0/сек</span></div>
+      <div class="empire-summary-row"><span>🏗️ Активных зданий</span><span id="empireOwnedLabel">0 / 8</span></div>
+      <div class="empire-summary-row"><span>👑 Размер Империи</span><span id="empireSizeLabel">0</span></div>
+    </div>
+
+    <div class="empire-summary empire-bonus-box">
+      <div class="empire-summary-row"><span>🎲 Шанс события (каждые 20 с)</span><span id="empireBonusEvents">22%</span></div>
+      <div class="empire-summary-row"><span>🔊 Сила бума и рекламы</span><span id="empireBonusBoost">+0%</span></div>
+    </div>
+
+    <div class="empire-goal-card empire-total-card">
+      <div class="empire-goal-title">ПРОГРЕСС ИМПЕРИИ · <b id="empireTotalLabel">0%</b></div>
+      <div class="empire-goal-progress-track"><div id="empireTotalFill" class="empire-goal-progress-fill empire-total-fill"></div></div>
+    </div>
+
+    <div class="empire-goal-card">
+      <div class="empire-goal-title">СЛЕДУЮЩАЯ ЦЕЛЬ</div>
+      <div class="empire-goal-name" id="empireGoalName">🕳 ПОДВАЛ</div>
+      <div class="empire-goal-progress-track"><div id="empireGoalProgressFill" class="empire-goal-progress-fill"></div></div>
+      <div class="empire-goal-progress-label" id="empireGoalProgressLabel">0 / 500</div>
+      <div id="empireStepBox" class="empire-step hidden">
+        <div class="empire-step-name" id="empireStepName"></div>
+        <div class="empire-goal-progress-track thin"><div id="empireStepFill" class="empire-goal-progress-fill"></div></div>
+        <div class="empire-goal-progress-label" id="empireStepLabel"></div>
+      </div>
+      <button id="empireGoalPathBtn" class="secondary-btn">ПОКАЗАТЬ ПУТЬ</button>
+    </div>
+
+    <div id="empireBuildingList" class="empire-building-list"></div>
+
+    <div class="empire-secrets">
+      <h3>🔐 СЕКРЕТЫ</h3>
+      <div id="empireSecretsList" class="empire-secrets-list"></div>
+    </div>
+  </section>
+
+  <!-- ===================== ЕЩЁ (достижения / статистика / настройки) ===================== -->
+  <section id="screen-more" class="screen screen-more">
+    <h2 class="screen-title">📋 ЕЩЁ</h2>
+
+    <div class="more-tabs">
+      <button class="more-tab-btn active" data-more-tab="achievements">🏆 Достижения</button>
+      <button class="more-tab-btn" data-more-tab="stats">📊 Статистика</button>
+      <button class="more-tab-btn" data-more-tab="settings">⚙️ Настройки</button>
+    </div>
+
+    <div id="moreTab-achievements" class="more-tab-content active">
+      <div id="achievementsList" class="achievements-list"></div>
+    </div>
+
+    <div id="moreTab-stats" class="more-tab-content">
+      <div id="statsList" class="stats-list"></div>
+    </div>
+
+    <div id="moreTab-settings" class="more-tab-content">
+      <div class="settings-row">
+        <span>🔊 Звук</span>
+        <button id="soundToggleBtn2" class="toggle-btn">ВКЛ</button>
+      </div>
+      <div class="settings-row">
+        <span>🔉 Громкость</span>
+        <input id="volumeSlider2" class="volume-slider" type="range" min="0" max="100" step="1" value="100" aria-label="Громкость">
+      </div>
+      <div class="settings-row">
+        <span>🌐 Язык / Language</span>
+        <select id="langSelect" aria-label="Language" style="background:#1a1030;color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 10px;font:inherit">
+          <option value="ru">Русский</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <button id="resetProgressBtn" class="danger-btn">🗑️ СБРОСИТЬ ПРОГРЕСС</button>
+    </div>
+  </section>
+
+  <!-- ===================== НИЖНЯЯ НАВИГАЦИЯ ===================== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-screen="main">
+      <span class="nav-icon">🎰</span><span class="nav-label">Главная</span>
+    </button>
+    <button class="nav-btn" data-screen="shop">
+      <span class="nav-icon">🛒</span><span class="nav-label">Магазин</span>
+    </button>
+    <button class="nav-btn" data-screen="empire">
+      <span class="nav-icon">👑</span><span class="nav-label">Империя</span>
+    </button>
+    <button class="nav-btn" data-screen="more">
+      <span class="nav-icon">📋</span><span class="nav-label">Ещё</span>
+    </button>
+  </nav>
+
+  <!-- ===================== МОДАЛЬНЫЕ ОКНА ===================== -->
+
+  <!-- Ежедневный бонус -->
+  <div id="modalDaily" class="modal-overlay hidden">
+    <div class="modal-box modal-daily">
+      <h3>🎁 ЕЖЕДНЕВНЫЙ БОНУС</h3>
+      <div id="dailyDaysRow" class="daily-days-row"></div>
+      <div id="dailyRewardAmount" class="daily-reward-amount">+100 БУРМАЛДЫ</div>
+      <button id="dailyClaimBtn" class="primary-btn">ЗАБРАТЬ</button>
+      <button id="dailyDoubleBtn" class="ad-btn">📺 УДВОИТЬ НАГРАДУ</button>
+    </div>
+  </div>
+
+  <!-- Достижение toast -->
+  <div id="achievementToast" class="achievement-toast hidden">
+    <span class="achievement-toast-icon">🏆</span>
+    <div class="achievement-toast-text">
+      <span class="achievement-toast-title">ДОСТИЖЕНИЕ!</span>
+      <span id="achievementToastName" class="achievement-toast-name">Первый клик</span>
+    </div>
+  </div>
+
+  <!-- Level up popup -->
+  <div id="levelUpPopup" class="levelup-popup hidden">
+    <div class="levelup-inner">
+      <span class="levelup-label">НОВЫЙ УРОВЕНЬ</span>
+      <span id="levelUpNumber" class="levelup-number">2</span>
+      <span id="levelUpName" class="levelup-name">Игрок</span>
+    </div>
+  </div>
+
+
+  <!-- Первый запуск: цель, риск, вкладки -->
+  <div id="modalWelcome" class="modal-overlay hidden">
+    <div class="modal-box modal-welcome">
+      <h3>🎰 ДОБРО ПОЖАЛОВАТЬ В БУРМАЛДУ</h3>
+      <div class="welcome-goal" id="welcomeGoal"></div>
+      <div class="welcome-block"><b>⚠️ Крутка — это риск</b><span id="welcomeRisk"></span></div>
+      <div class="welcome-tabs">
+        <div>👑 <b>Империя</b> — здания приносят доход каждую секунду</div>
+        <div>🛒 <b>Магазин</b> — улучшения круток и пассивного дохода</div>
+        <div>📋 <b>Ещё</b> — достижения, статистика, настройки</div>
+      </div>
+      <button id="welcomeOkBtn" class="primary-btn">ПОНЯТНО, ПОЕХАЛИ</button>
+    </div>
+  </div>
+
+  <!-- Оффлайн-прогресс -->
+  <div id="modalOffline" class="modal-overlay hidden">
+    <div class="modal-box modal-offline">
+      <div class="offline-icon">💰</div>
+      <h3>ПОКА ТЕБЯ НЕ БЫЛО</h3>
+      <div id="offlineAmount" class="offline-amount">+0 💰</div>
+      <p id="offlineTime" class="offline-time">⏱ Засчитано: 0с</p>
+      <p class="offline-desc">Бурмалда продолжала зарабатывать, пока тебя не было.</p>
+      <button id="offlineClaimBtn" class="primary-btn">ЗАБРАТЬ</button>
+      <div class="offline-limit">Офлайн: 50% дохода, максимум 4 часа</div>
+    </div>
+  </div>
+
+  <!-- Случайное событие: Мужик-инвестор (удвоить ВЕСЬ баланс, 50/50) -->
+  <div id="modalInvestment" class="modal-overlay hidden">
+    <div id="investmentBox" class="modal-box modal-investment">
+      <div class="investor-stage">
+        <div id="investmentCharacter" class="investor-figure">
+          <img id="investorImage" class="investor-image hidden" alt="Мужик">
+          <div id="investorPlaceholder" class="investor-placeholder"><span class="investor-emoji">🕴️</span><small id="investorPlaceholderName">chel.png</small></div>
+        </div>
+      </div>
+      <div class="investment-title">МУЖИК</div>
+      <div id="investmentQuote" class="investment-quote">«Слышь, дело есть. Давай удвоим всё, что у тебя в карманах. Или не удвоим.»</div>
+      <div class="investor-balance"><small>ТВОЙ БАЛАНС</small><b id="investmentAmount">0 💰</b><small id="investmentWin">при успехе → 0 💰</small></div>
+      <div id="investmentWarning" class="investment-warning">50% — БАЛАНС ×2 · 50% — БАЛАНС ОБНУЛИТСЯ</div>
+      <div id="investmentButtons">
+        <button id="investmentInvestBtn" class="primary-btn investment-btn">УДВОИТЬ</button>
+        <button id="investmentRejectBtn" class="secondary-btn investment-btn">ПОСЛАТЬ</button>
+      </div>
+      <div id="investmentRoll" class="investment-roll hidden"><div class="roll-ring"></div><div id="rollText" class="roll-text"></div></div>
+      <div id="investmentResult" class="investment-result hidden">
+        <div id="resultTitle" class="res-title"></div><div id="resultNum" class="res-num"></div><div id="resultSub" class="res-sub"></div>
+      </div>
+      <button id="investmentCloseBtn" class="primary-btn investment-btn hidden">ПРОДОЛЖИТЬ</button>
+    </div>
+  </div>
+
+  <!-- Случайное событие: Налоговая проверка -->
+  <div id="modalTax" class="modal-overlay hidden">
+    <div id="taxBox" class="modal-box modal-tax">
+      <div class="tax-figure"><img id="taxImage" class="tax-image hidden" alt="Налоговый инспектор"><span id="taxEmoji">🧑‍💼</span></div>
+      <div class="tax-title">💼 ГОСУДАРСТВЕННАЯ ДОЛЯ</div>
+      <div class="tax-paper">
+        <p>«Добрый день. Я из налоговой.</p>
+        <p>В соответствии со статьёй 99 Федерального кодекса казино и прочих сомнительных развлечений, ставка налогообложения составляет 99%.</p>
+        <p>Почему не 100%? Мы не звери. Вам ещё работать.»</p>
+        <div class="tax-stamp">ОПЛАЧЕНО</div>
+      </div>
+      <div class="tax-choice">На выбор:</div>
+      <div id="taxNumbers" class="tax-numbers"></div>
+      <button id="taxPayBtn" class="primary-btn investment-btn">ЗАПЛАТИТЬ 99% от баланса</button>
+      <div id="taxResult" class="investment-result hidden">
+        <div id="taxResultTitle" class="res-title"></div><div id="taxResultNum" class="res-num"></div><div id="taxResultSub" class="res-sub"></div>
+      </div>
+      <button id="taxCloseBtn" class="primary-btn investment-btn hidden">ПРОДОЛЖИТЬ</button>
+    </div>
+  </div>
+
+  <!-- Случайное событие: Автомат сломался -->
+  <div id="modalBroken" class="modal-overlay hidden">
+    <div id="brokenBox" class="modal-box modal-broken">
+      <div class="broken-machine-wrap">
+        <div class="broken-machine"><img id="machineImage" class="machine-image hidden" alt="Автомат"><span id="machineEmoji">🎰</span></div>
+        <span class="spark s1">⚡</span><span class="spark s2">⚡</span><span class="spark s3">✨</span><span class="smoke">💨</span>
+      </div>
+      <div class="broken-title">АВТОМАТ СЛОМАЛСЯ</div>
+      <div class="broken-text">Автомат начинает искрить, барабаны крутятся сами.</div>
+      <div class="broken-reels"><div id="brokenReel1" class="broken-reel">🍒</div><div id="brokenReel2" class="broken-reel">🍋</div><div id="brokenReel3" class="broken-reel">🔔</div></div>
+      <div id="brokenStatus" class="broken-status"></div>
+      <div id="brokenButtons">
+        <button id="brokenGambleBtn" class="primary-btn investment-btn">🎰 ВЫБИТЬ ДЖЕКПОТ · шанс 50%</button>
+        <button id="brokenRepairBtn" class="secondary-btn investment-btn">🔧 ПОЗВАТЬ МАСТЕРА · −10%</button>
+      </div>
+      <div id="brokenResult" class="investment-result hidden">
+        <div id="brokenResultTitle" class="res-title"></div><div id="brokenResultNum" class="res-num"></div><div id="brokenResultSub" class="res-sub"></div>
+      </div>
+      <button id="brokenCloseBtn" class="primary-btn investment-btn hidden">ПРОДОЛЖИТЬ</button>
+    </div>
+  </div>
+
+  <!-- Событие: баннер -->
+  <div id="eventBanner" class="event-banner hidden">
+    <span id="eventBannerText">БУРМАЛДА БУМ</span>
+  </div>
+
+  <!-- Событие: джекпот бурмалды (быстрый клик) -->
+  <div id="modalJackpotEvent" class="modal-overlay hidden">
+    <div class="modal-box modal-jackpot-event">
+      <h3>ДЖЕКПОТ БУРМАЛДЫ</h3>
+      <div class="jackpot-reels">
+        <span>7</span><span>7</span><span id="jackpotThird">?</span>
+      </div>
+      <button id="jackpotHitBtn" class="jackpot-hit-btn">УДАРИТЬ 🔨</button>
+      <div id="jackpotTimerBar" class="jackpot-timer-bar"><div id="jackpotTimerFill"></div></div>
+    </div>
+  </div>
+
+  <!-- Монетный дождь слой -->
+  <div id="coinRainLayer" class="coin-rain-layer hidden"></div>
+
+  <!-- Империя: детальная панель здания -->
+  <div id="modalBuildingDetail" class="modal-overlay hidden">
+    <div class="modal-box modal-building-detail">
+      <button id="buildingDetailCloseBtn" class="modal-close-x">✕</button>
+      <div class="building-detail-icon" id="buildingDetailIcon">🕳</div>
+      <h3 id="buildingDetailName">ПОДВАЛ</h3>
+      <div class="building-detail-stage" id="buildingDetailStage">Старый подвал</div>
+      <div class="building-detail-level" id="buildingDetailLevel">Уровень 0</div>
+      <div class="building-detail-income" id="buildingDetailIncome">+0/сек</div>
+      <button id="buildingDetailBuyBtn" class="primary-btn">УЛУЧШИТЬ ЗДАНИЕ</button>
+      <div class="building-detail-subtitle">ВНУТРЕННИЕ УЛУЧШЕНИЯ</div>
+      <div id="buildingDetailSubgrid" class="building-detail-subgrid"></div>
+    </div>
+  </div>
+
+  <!-- Империя: путь к разблокировке -->
+  <div id="modalEmpirePath" class="modal-overlay hidden">
+    <div class="modal-box modal-empire-path">
+      <h3 id="empirePathTitle">ПУТЬ К: ГАРАЖ</h3>
+      <div id="empirePathList" class="empire-path-list"></div>
+      <button id="empirePathCloseBtn" class="secondary-btn">ЗАКРЫТЬ</button>
+    </div>
+  </div>
+
+  <!-- Подтверждение сброса -->
+  <div id="modalResetConfirm" class="modal-overlay hidden">
+    <div class="modal-box modal-reset-confirm">
+      <h3>⚠️ СБРОСИТЬ ВЕСЬ ПРОГРЕСС?</h3>
+      <p>Это действие нельзя отменить. Весь баланс, уровни и улучшения будут удалены навсегда.</p>
+      <button id="resetConfirmYesBtn" class="danger-btn">ДА, СБРОСИТЬ</button>
+      <button id="resetConfirmNoBtn" class="secondary-btn">ОТМЕНА</button>
+    </div>
+  </div>
+
+  <!-- Финал прогрессии -->
+  <div id="modalFinalStage" class="modal-overlay hidden">
+    <div class="modal-box modal-final-stage">
+      <h3>👑 ТЫ СТАЛ БУРМАЛДОЙ</h3>
+      <p>Ты прошёл весь путь от маленького казино до самой БУРМАЛДЫ. Но остановка — не для тебя. Продолжай бить собственные рекорды!</p>
+      <button id="finalStageCloseBtn" class="primary-btn">ПРОДОЛЖИТЬ ПУТЬ</button>
+    </div>
+  </div>
+
+  <!-- Реклама (заглушка/реальный SDK) -->
+  <div id="adLoadingOverlay" class="modal-overlay hidden">
+    <div class="modal-box modal-ad-loading">
+      <h3>📺 РЕКЛАМА</h3>
+      <p id="adLoadingText">Загрузка рекламы...</p>
+    </div>
+  </div>
+
+  <!-- Мемная фраза -->
+  <div id="phraseBubble" class="phrase-bubble hidden"></div>
+
+</div>
+
+<script src="game.js?v=2026-10-14-a"></script>
+</body>
+</html>
