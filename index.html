@@ -6,7 +6,7 @@
 <title>БУРМАЛДА: CLICKER</title>
 <meta name="description" content="Мемный idle-кликер с казино-визуалом. Бурмалда пошла!">
 <meta name="build" content="2026-10-14-a">
-<link rel="stylesheet" href="style.css?v=2026-10-14-a">
+<link rel="stylesheet" href="style.css?v=2026-11-11-fonts">
 <meta name="theme-color" content="#120a22">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,6 +21,17 @@
     document.write('<script src="/sdk.js"><\/script>');
     document.write('<script>window.YaGames||document.write(\'<script src="https://yandex.ru/games/sdk/v2"><\\/script>\')<\/script>');
   }
+})();
+</script>
+<script>
+/* Высота игры = реально видимая область (на телефоне 100vh включает панели браузера и режет нижнее меню). */
+(function () {
+  var r = document.documentElement;
+  function setH() { var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight; if (h) r.style.setProperty('--app-h', Math.round(h) + 'px'); }
+  setH();
+  window.addEventListener('resize', setH);
+  window.addEventListener('orientationchange', function () { setTimeout(setH, 250); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', setH);
 })();
 </script>
 </head>
